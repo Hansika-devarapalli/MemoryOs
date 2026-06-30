@@ -1,0 +1,1 @@
+- [MemoryOS OpenAPI collision fix](memoryos-openapi-collision.md) — removing query params from endpoints that also have path params avoids Orval TS2308 GetRelatedDocumentsParams collision

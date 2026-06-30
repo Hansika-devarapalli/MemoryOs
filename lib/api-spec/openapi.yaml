@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: MemoryOS API - AI-powered semantic document search and indexing
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: documents
+    description: Document operations
+  - name: search
+    description: AI semantic search
+  - name: indexing
+    description: Folder indexing
+  - name: stats
+    description: Dashboard statistics
+  - name: timeline
+    description: Memory timeline
 paths:
   /healthz:
     get:
@@ -24,6 +34,229 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List all indexed documents
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [pdf, docx, txt, md, image, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentList"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get document details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+
+  /documents/{id}/summary:
+    post:
+      operationId: generateSummary
+      tags: [documents]
+      summary: Generate AI summary for document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Generated summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+
+  /documents/{id}/related:
+    get:
+      operationId: getRelatedDocuments
+      tags: [documents]
+      summary: Get related documents based on embeddings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Related documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentList"
+
+  /search:
+    post:
+      operationId: semanticSearch
+      tags: [search]
+      summary: Perform semantic/AI-powered search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchInput"
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+
+  /search/history:
+    get:
+      operationId: getSearchHistory
+      tags: [search]
+      summary: Get recent search history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Search history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchHistoryList"
+
+  /index:
+    post:
+      operationId: indexFolder
+      tags: [indexing]
+      summary: Index a folder for semantic search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndexInput"
+      responses:
+        "200":
+          description: Indexing started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndexStatus"
+
+  /index/status:
+    get:
+      operationId: getIndexStatus
+      tags: [indexing]
+      summary: Get current indexing status
+      responses:
+        "200":
+          description: Indexing status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndexStatus"
+
+  /ocr:
+    post:
+      operationId: runOcr
+      tags: [indexing]
+      summary: Extract text from an image using OCR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OcrInput"
+      responses:
+        "200":
+          description: OCR result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OcrResult"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /timeline:
+    get:
+      operationId: getTimeline
+      tags: [timeline]
+      summary: Get memory timeline grouped by date
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Memory timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timeline"
+
+  /folders:
+    get:
+      operationId: listFolders
+      tags: [indexing]
+      summary: List configured watched folders
+      responses:
+        "200":
+          description: Folders list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderList"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +267,281 @@ components:
       required:
         - status
 
+    Document:
+      type: object
+      required: [id, title, path, type, size, createdAt, modifiedAt, indexed]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        path:
+          type: string
+        type:
+          type: string
+          enum: [pdf, docx, txt, md, image, unknown]
+        size:
+          type: integer
+          description: File size in bytes
+        summary:
+          type: ["string", "null"]
+        keywords:
+          type: array
+          items:
+            type: string
+        preview:
+          type: ["string", "null"]
+          description: Text preview snippet
+        ocrText:
+          type: ["string", "null"]
+          description: OCR-extracted text for images
+        createdAt:
+          type: string
+          format: date-time
+        modifiedAt:
+          type: string
+          format: date-time
+        indexed:
+          type: boolean
+        embeddingCount:
+          type: ["integer", "null"]
+
+    DocumentList:
+      type: object
+      required: [documents, total]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        total:
+          type: integer
+
+    DocumentSummary:
+      type: object
+      required: [id, summary, keywords, keyPoints]
+      properties:
+        id:
+          type: string
+        summary:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+
+    SearchInput:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+        limit:
+          type: integer
+          default: 10
+        types:
+          type: array
+          items:
+            type: string
+
+    SearchResultItem:
+      type: object
+      required: [document, score, snippet]
+      properties:
+        document:
+          $ref: "#/components/schemas/Document"
+        score:
+          type: number
+          description: Similarity score 0-1
+        snippet:
+          type: string
+          description: Relevant excerpt from document
+
+    SearchResult:
+      type: object
+      required: [query, results, totalResults, aiResponse, timeTakenMs]
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResultItem"
+        totalResults:
+          type: integer
+        aiResponse:
+          type: ["string", "null"]
+          description: LLM-generated natural language response
+        timeTakenMs:
+          type: integer
+
+    SearchHistory:
+      type: object
+      required: [id, query, timestamp, resultCount]
+      properties:
+        id:
+          type: string
+        query:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        resultCount:
+          type: integer
+
+    SearchHistoryList:
+      type: object
+      required: [history]
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHistory"
+
+    IndexInput:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          description: Absolute folder path to index
+        recursive:
+          type: boolean
+          default: true
+
+    IndexStatus:
+      type: object
+      required: [isIndexing, totalFiles, processedFiles, failedFiles, currentFile, folders]
+      properties:
+        isIndexing:
+          type: boolean
+        totalFiles:
+          type: integer
+        processedFiles:
+          type: integer
+        failedFiles:
+          type: integer
+        currentFile:
+          type: ["string", "null"]
+        folders:
+          type: array
+          items:
+            type: string
+
+    OcrInput:
+      type: object
+      required: [filePath]
+      properties:
+        filePath:
+          type: string
+
+    OcrResult:
+      type: object
+      required: [filePath, text, confidence]
+      properties:
+        filePath:
+          type: string
+        text:
+          type: string
+        confidence:
+          type: number
+
+    DashboardStats:
+      type: object
+      required: [totalDocuments, totalImages, totalEmbeddings, storageUsedBytes, recentSearches, typeBreakdown, indexedToday, activityByDay]
+      properties:
+        totalDocuments:
+          type: integer
+        totalImages:
+          type: integer
+        totalEmbeddings:
+          type: integer
+        storageUsedBytes:
+          type: integer
+        recentSearches:
+          type: integer
+        typeBreakdown:
+          type: object
+          properties:
+            pdf:
+              type: integer
+            docx:
+              type: integer
+            txt:
+              type: integer
+            md:
+              type: integer
+            image:
+              type: integer
+          required: [pdf, docx, txt, md, image]
+        indexedToday:
+          type: integer
+        activityByDay:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayActivity"
+
+    DayActivity:
+      type: object
+      required: [date, indexed, searched]
+      properties:
+        date:
+          type: string
+        indexed:
+          type: integer
+        searched:
+          type: integer
+
+    TimelineGroup:
+      type: object
+      required: [label, date, documents, searches]
+      properties:
+        label:
+          type: string
+        date:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        searches:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHistory"
+
+    Timeline:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineGroup"
+
+    Folder:
+      type: object
+      required: [path, documentCount, lastIndexed, isWatched]
+      properties:
+        path:
+          type: string
+        documentCount:
+          type: integer
+        lastIndexed:
+          type: ["string", "null"]
+          format: date-time
+        isWatched:
+          type: boolean
+
+    FolderList:
+      type: object
+      required: [folders]
+      properties:
+        folders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Folder"
