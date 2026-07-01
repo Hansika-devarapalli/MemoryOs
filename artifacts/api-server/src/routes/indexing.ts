@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, documentsTable, foldersTable } from "@workspace/db";
