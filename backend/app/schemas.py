@@ -39,11 +39,13 @@ class SearchResultItem(BaseModel):
 
 
 class SearchResult(BaseModel):
-    query: str                          # required by OpenAPI spec
+    query: str
     results: List[SearchResultItem]
     aiResponse: Optional[str] = None
     totalResults: int
     timeTakenMs: int
+    # Extra: not in OpenAPI spec but consumed by the frontend directly
+    aiUsed: bool = False
 
 
 class SearchHistoryItem(BaseModel):
@@ -92,7 +94,7 @@ class OcrInput(BaseModel):
 
 
 class OcrResult(BaseModel):
-    filePath: str                       # required by OpenAPI spec
+    filePath: str
     text: str
     confidence: float
 
@@ -116,8 +118,8 @@ class DashboardStats(BaseModel):
     totalImages: int
     totalEmbeddings: int
     storageUsedBytes: int
-    recentSearches: int                 # required by OpenAPI spec
-    indexedToday: int                   # required by OpenAPI spec
+    recentSearches: int
+    indexedToday: int
     typeBreakdown: TypeBreakdown
     activityByDay: List[DayActivity]
 
@@ -148,12 +150,17 @@ class Timeline(BaseModel):
 
 
 class DocumentSummary(BaseModel):
-    id: str                             # required by OpenAPI spec
+    id: str
     summary: str
     keywords: List[str]
-    keyPoints: List[str]               # required by OpenAPI spec
+    keyPoints: List[str]
 
 
 class HealthStatus(BaseModel):
     status: str
     version: str
+    # Not in OpenAPI spec — extra fields for the settings page live status
+    ollamaAvailable: bool = False
+    chromaAvailable: bool = False
+    llmModel: str = ""
+    embedModel: str = ""

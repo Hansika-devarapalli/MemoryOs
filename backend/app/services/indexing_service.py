@@ -1,6 +1,12 @@
-"""File indexing pipeline: walk directory → extract text → embed → store."""
+"""File indexing pipeline: walk directory → extract text → embed → store.
+
+Runs in a background thread started by the /api/index endpoint.
+Each call creates its own SQLAlchemy session (never reuse a request session
+across thread boundaries).
+"""
 import os
 import time
+import logging
 import threading
 from pathlib import Path
 from datetime import datetime
@@ -11,6 +17,8 @@ from ..schemas import IndexStatus
 from .ocr_service import extract_text_from_image
 from .embedding_service import embed_text
 from .chroma_service import add_document
+
+logger = logging.getLogger("memoryos")
 
 SUPPORTED = {
     ".pdf": "pdf",
@@ -25,25 +33,37 @@ SUPPORTED = {
 
 
 def _extract_text(filepath: str, ftype: str) -> str:
+    """Extract plain text from a file. Returns empty string on any failure."""
     try:
         if ftype == "pdf":
             import fitz  # PyMuPDF
             with fitz.open(filepath) as doc:
                 return "\n".join(page.get_text() for page in doc)
+
         if ftype == "docx":
             from docx import Document as DocxDoc
             return "\n".join(p.text for p in DocxDoc(filepath).paragraphs)
+
         if ftype in ("txt", "md"):
             return Path(filepath).read_text(encoding="utf-8", errors="ignore")
+
         if ftype == "image":
             text, _ = extract_text_from_image(filepath)
             return text
+
     except Exception:
-        pass
+        logger.warning("Failed to extract text from '%s'", filepath, exc_info=True)
+
     return ""
 
 
-def _index_file(filepath: str, ftype: str, db: Session, state: IndexStatus, lock: threading.Lock):
+def _index_file(
+    filepath: str,
+    ftype: str,
+    db: Session,
+    state: IndexStatus,
+    lock: threading.Lock,
+):
     with lock:
         state.currentFile = filepath
 
@@ -67,9 +87,12 @@ def _index_file(filepath: str, ftype: str, db: Session, state: IndexStatus, lock
         db.commit()
         db.refresh(doc)
 
-        # Embed + persist to ChromaDB
+        # Embed and persist to ChromaDB (best-effort — doesn't fail the file)
         embedding = embed_text(text) if text else None
-        ok = add_document(doc.id, text or title, embedding, {"path": filepath, "type": ftype, "title": title})
+        ok = add_document(
+            doc.id, text or title, embedding,
+            {"path": filepath, "type": ftype, "title": title},
+        )
         if ok:
             doc.embedding_count = 1
             db.commit()
@@ -78,6 +101,7 @@ def _index_file(filepath: str, ftype: str, db: Session, state: IndexStatus, lock
             state.processedFiles += 1
 
     except Exception:
+        logger.error("Failed to index '%s'", filepath, exc_info=True)
         with lock:
             state.failedFiles += 1
 
@@ -89,11 +113,13 @@ def index_folder_background(
     state: IndexStatus,
     lock: threading.Lock,
 ):
+    """Entry point for the background indexing thread."""
     if not os.path.exists(folder_path):
         _simulate(folder_path, db, state, lock)
         return
 
-    files = []
+    # Collect files
+    files: list[str] = []
     if recursive:
         for root, _, names in os.walk(folder_path):
             for name in names:
@@ -113,6 +139,7 @@ def index_folder_background(
         ftype = SUPPORTED[Path(fp).suffix.lower()]
         _index_file(fp, ftype, db, state, lock)
 
+    # Update folder metadata
     folder = db.query(Folder).filter(Folder.path == folder_path).first()
     if folder:
         folder.document_count = db.query(Document).count()
@@ -123,9 +150,14 @@ def index_folder_background(
         state.isIndexing = False
         state.currentFile = None
 
+    logger.info(
+        "Indexing complete — processed=%d failed=%d path=%s",
+        state.processedFiles, state.failedFiles, folder_path,
+    )
+
 
 def _simulate(folder_path: str, db: Session, state: IndexStatus, lock: threading.Lock):
-    """Demo mode: animate progress without a real directory."""
+    """Demo mode — animates progress when the path doesn't exist on disk."""
     steps = [
         "Scanning files...",
         "Extracting text...",
@@ -133,6 +165,7 @@ def _simulate(folder_path: str, db: Session, state: IndexStatus, lock: threading
         "Remembering your documents...",
     ]
     total = db.query(Document).count() or 10
+
     with lock:
         state.totalFiles = total
 
@@ -142,7 +175,6 @@ def _simulate(folder_path: str, db: Session, state: IndexStatus, lock: threading
             state.currentFile = step
             state.processedFiles = min(int(total * (i + 1) / len(steps)), total)
 
-    # Mark all existing docs as indexed
     db.query(Document).update({"indexed": True, "indexed_at": datetime.utcnow()})
     folder = db.query(Folder).filter(Folder.path == folder_path).first()
     if folder:
