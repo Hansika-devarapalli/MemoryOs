@@ -1,1 +1,2 @@
 - [MemoryOS OpenAPI collision fix](memoryos-openapi-collision.md) — removing query params from endpoints that also have path params avoids Orval TS2308 GetRelatedDocumentsParams collision
+- [MemoryOS Python backend](memoryos-python-backend.md) — FastAPI + SQLite backend; key env var, threading, and contract rules

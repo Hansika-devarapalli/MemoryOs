@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { Toaster } from 'sonner';
@@ -47,19 +46,13 @@ function AppRoutes() {
   );
 }
 
-function App() {
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
-
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <AppRoutes />
       </WouterRouter>
-      <Toaster theme="dark" position="bottom-right" className="font-sans" />
+      <Toaster position="bottom-right" className="font-sans" />
     </QueryClientProvider>
   );
 }
-
-export default App;

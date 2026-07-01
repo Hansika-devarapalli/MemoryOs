@@ -1,7 +1,10 @@
 import { useGetDocument, useGetRelatedDocuments, useGenerateSummary, getGetDocumentQueryKey, getGetRelatedDocumentsQueryKey } from '@workspace/api-client-react';
 import { useParams, Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { FileText, File, FileCode, AlignLeft, Image as ImageIcon, ArrowLeft, Calendar, HardDrive, Hash, Sparkles, Loader2 } from 'lucide-react';
+import {
+  FileText, File, FileCode, AlignLeft, Image as ImageIcon,
+  ArrowLeft, Calendar, HardDrive, Hash, Sparkles, Loader2, Tag,
+} from 'lucide-react';
 import { formatBytes, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,185 +14,181 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function DocumentViewer() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  
-  const { data: doc, isLoading: isDocLoading } = useGetDocument(id!, { 
-    query: { enabled: !!id, queryKey: getGetDocumentQueryKey(id!) } 
-  });
-  
-  const { data: relatedDocs } = useGetRelatedDocuments(id!, {
-    query: { enabled: !!id, queryKey: getGetRelatedDocumentsQueryKey(id!) }
-  });
 
+  const { data: doc, isLoading } = useGetDocument(id!, {
+    query: { enabled: !!id, queryKey: getGetDocumentQueryKey(id!) },
+  });
+  const { data: related } = useGetRelatedDocuments(id!, {
+    query: { enabled: !!id, queryKey: getGetRelatedDocumentsQueryKey(id!) },
+  });
   const summaryMutation = useGenerateSummary({
     mutation: {
-      onSuccess: (data) => {
-        // Optimistically update document cache with new summary data
-        queryClient.setQueryData(getGetDocumentQueryKey(id!), (old: any) => {
-          if (!old) return old;
-          return {
-            ...old,
-            summary: data.summary,
-            keywords: data.keywords
-          };
-        });
-      }
-    }
+      onSuccess: data => {
+        queryClient.setQueryData(getGetDocumentQueryKey(id!), (old: any) =>
+          old ? { ...old, summary: data.summary, keywords: data.keywords } : old
+        );
+      },
+    },
   });
 
-  if (isDocLoading) return <DocumentSkeleton />;
-  if (!doc) return <div className="p-8 text-center text-muted-foreground">Document not found</div>;
+  if (isLoading) return <ViewerSkeleton />;
+  if (!doc) return (
+    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+      Memory not found.
+    </div>
+  );
 
-  const Icon = getDocumentIcon(doc.type);
+  const Icon = typeIcon(doc.type);
 
   return (
-    <div className="flex h-full w-full">
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 border-r border-border">
-        <div className="max-w-3xl mx-auto space-y-8">
-          
-          <Link href="/search" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Search
+    <div className="flex h-full w-full overflow-hidden">
+
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-2xl mx-auto space-y-7">
+
+          <Link href="/search">
+            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to Remember
+            </div>
           </Link>
 
           {/* Header */}
-          <div className="glass-card p-6 rounded-2xl flex gap-6">
-            <div className="w-16 h-16 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <Icon className="w-8 h-8 text-primary" />
+          <div className="card p-6 flex gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Icon className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold truncate text-foreground mb-2">{doc.title}</h1>
-              <p className="text-muted-foreground text-sm truncate font-mono bg-black/20 p-2 rounded border border-white/5 inline-block">
-                {doc.path}
-              </p>
-              
-              <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5"><HardDrive className="w-4 h-4" /> {formatBytes(doc.size)}</div>
-                <div className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Modified {formatDate(doc.modifiedAt)}</div>
-                <div className="flex items-center gap-1.5"><Hash className="w-4 h-4" /> {doc.embeddingCount || 0} Embeddings</div>
+              <h1 className="text-lg font-bold text-foreground truncate">{doc.title}</h1>
+              <p className="text-xs text-muted-foreground font-mono mt-1 truncate">{doc.path}</p>
+              <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><HardDrive className="w-3.5 h-3.5" />{formatBytes(doc.size)}</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Modified {formatDate(doc.modifiedAt)}</span>
+                <span className="flex items-center gap-1"><Hash className="w-3.5 h-3.5" />{doc.embeddingCount || 0} embeddings</span>
               </div>
             </div>
           </div>
 
           {/* Keywords */}
           {doc.keywords && doc.keywords.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {doc.keywords.map(kw => (
-                <Badge key={kw} variant="glass">{kw}</Badge>
-              ))}
+            <div className="flex items-start gap-3">
+              <Tag className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div className="flex flex-wrap gap-1.5">
+                {doc.keywords.map(kw => (
+                  <span key={kw} className="text-xs px-2.5 py-1 rounded-full border border-border bg-secondary text-foreground">
+                    {kw}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* AI Summary Section */}
-          <div className="space-y-4">
+          {/* AI Summary */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" /> AI Summary
+              <h2 className="text-sm font-semibold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" /> AI Summary
               </h2>
               {!doc.summary && (
-                <Button 
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => summaryMutation.mutate({ id: doc.id })}
                   disabled={summaryMutation.isPending}
-                  size="sm"
-                  className="gap-2"
+                  className="h-7 text-xs gap-1.5"
                 >
-                  {summaryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  Generate Summary
+                  {summaryMutation.isPending
+                    ? <><Loader2 className="w-3 h-3 animate-spin" />Generating…</>
+                    : <><Sparkles className="w-3 h-3" />Generate</>
+                  }
                 </Button>
               )}
             </div>
 
             {doc.summary ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card p-6 rounded-2xl bg-primary/5 border-primary/20 relative overflow-hidden"
+                className="card p-5 border-l-4 border-l-primary bg-primary/2"
               >
-                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-                <p className="leading-relaxed text-foreground/90">{doc.summary}</p>
+                <p className="text-sm leading-relaxed text-foreground">{doc.summary}</p>
               </motion.div>
             ) : (
-              <div className="glass-card p-8 rounded-2xl flex flex-col items-center text-center text-muted-foreground border-dashed">
-                <Sparkles className="w-8 h-8 opacity-20 mb-3" />
-                <p>No summary generated yet.</p>
+              <div className="card p-8 flex flex-col items-center text-center text-muted-foreground border-dashed">
+                <Sparkles className="w-7 h-7 opacity-20 mb-2" />
+                <p className="text-sm">No summary yet. Click Generate to create one with Gemma 3.</p>
               </div>
             )}
           </div>
 
-          {/* Content / OCR Text */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Content Extracted</h2>
-            <div className="glass-card p-6 rounded-2xl bg-black/40 font-mono text-sm leading-relaxed overflow-x-auto max-h-[500px] overflow-y-auto whitespace-pre-wrap text-muted-foreground border-white/5 shadow-inner">
-              {doc.ocrText || doc.preview || "No text content available."}
+          {/* Extracted content */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold">Extracted Content</h2>
+            <div className="card p-5 bg-secondary/50 font-mono text-xs leading-relaxed overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap text-foreground/80">
+              {doc.ocrText || doc.preview || 'No text content extracted from this file.'}
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* Sidebar - Related Documents */}
-      <div className="w-80 bg-sidebar p-6 overflow-y-auto hidden lg:block shrink-0">
-        <h3 className="font-semibold mb-6 flex items-center gap-2">
-          <Hash className="w-4 h-4 text-muted-foreground" /> Related Memories
-        </h3>
-        
-        <div className="space-y-4">
-          {relatedDocs?.documents && relatedDocs.documents.length > 0 ? (
-            relatedDocs.documents.map((relDoc, i) => {
-              const RelIcon = getDocumentIcon(relDoc.type);
+      {/* Related memories sidebar */}
+      <div className="w-72 shrink-0 border-l border-border overflow-y-auto p-5 hidden lg:block bg-secondary/30">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Related Memories</h3>
+
+        {related?.documents && related.documents.length > 0 ? (
+          <div className="space-y-2">
+            {related.documents.map((rel, i) => {
+              const RelIcon = typeIcon(rel.type);
               return (
                 <motion.div
-                  key={relDoc.id}
-                  initial={{ opacity: 0, x: 20 }}
+                  key={rel.id}
+                  initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
+                  transition={{ delay: i * 0.07 }}
                 >
-                  <Link href={`/documents/${relDoc.id}`} className="block outline-none">
-                    <div className="p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors cursor-pointer group">
-                      <div className="flex gap-3">
-                        <RelIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-0.5" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">{relDoc.title}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-1">{relDoc.path.split('/').pop()}</p>
-                        </div>
+                  <Link href={`/documents/${rel.id}`}>
+                    <div className="card card-hover p-3 cursor-pointer flex items-start gap-2.5">
+                      <RelIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{rel.title}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{rel.path.split('/').pop()}</p>
                       </div>
                     </div>
                   </Link>
                 </motion.div>
-              )
-            })
-          ) : (
-            <p className="text-sm text-muted-foreground">No closely related documents found.</p>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No closely related memories found.</p>
+        )}
       </div>
+
     </div>
   );
 }
 
-function getDocumentIcon(type: string) {
+function typeIcon(type: string) {
   switch (type) {
-    case 'pdf': return FileText;
-    case 'docx': return File;
-    case 'md': return FileCode;
-    case 'txt': return AlignLeft;
+    case 'pdf':   return FileText;
+    case 'docx':  return File;
+    case 'md':    return FileCode;
+    case 'txt':   return AlignLeft;
     case 'image': return ImageIcon;
-    default: return File;
+    default:      return File;
   }
 }
 
-function DocumentSkeleton() {
+function ViewerSkeleton() {
   return (
-    <div className="flex h-full w-full p-8 space-gap-8">
-      <div className="flex-1 max-w-3xl mx-auto space-y-8">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <div className="flex gap-2">
-          <Skeleton className="h-6 w-20 rounded-full" />
-          <Skeleton className="h-6 w-24 rounded-full" />
-        </div>
-        <Skeleton className="h-48 w-full rounded-2xl" />
-        <Skeleton className="h-96 w-full rounded-2xl" />
-      </div>
+    <div className="p-8 max-w-2xl mx-auto space-y-6">
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-28 w-full rounded-xl" />
+      <div className="flex gap-2"><Skeleton className="h-6 w-20 rounded-full" /><Skeleton className="h-6 w-24 rounded-full" /></div>
+      <Skeleton className="h-32 w-full rounded-xl" />
+      <Skeleton className="h-64 w-full rounded-xl" />
     </div>
   );
 }

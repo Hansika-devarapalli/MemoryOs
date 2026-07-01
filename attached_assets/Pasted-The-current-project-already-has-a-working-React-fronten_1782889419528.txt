@@ -1,0 +1,500 @@
+The current project already has a working React frontend and backend. Do NOT rebuild the project from scratch.
+
+Instead, refactor and improve the existing codebase.
+
+PRIMARY GOALS
+Replace the Express.js backend with FastAPI.
+Replace PostgreSQL with SQLite.
+Replace all mocked AI functionality with real on-device AI.
+Completely redesign the UI so it looks like a premium productivity application instead of a typical AI-generated website.
+Preserve all existing functionality while improving architecture and design.
+BACKEND MIGRATION
+
+Completely remove the current Express backend.
+
+Replace it with a Python FastAPI backend.
+
+Use the following structure:
+
+backend/
+│
+├── app/
+│   ├── main.py
+│   ├── database.py
+│   ├── config.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── dependencies.py
+│   │
+│   ├── routers/
+│   │   ├── search.py
+│   │   ├── indexing.py
+│   │   ├── documents.py
+│   │   ├── summary.py
+│   │   ├── ocr.py
+│   │   ├── stats.py
+│   │   └── timeline.py
+│   │
+│   ├── services/
+│   │   ├── ollama_service.py
+│   │   ├── chroma_service.py
+│   │   ├── embedding_service.py
+│   │   ├── indexing_service.py
+│   │   ├── summary_service.py
+│   │   ├── ocr_service.py
+│   │   └── search_service.py
+│   │
+│   └── utils/
+│
+├── requirements.txt
+└── memoryos.db
+DATABASE
+
+Replace PostgreSQL completely.
+
+Use
+
+SQLite
+SQLAlchemy 2.0
+Alembic (optional)
+
+Database file:
+
+memoryos.db
+
+Automatically create tables on startup.
+
+AI
+
+Remove every mocked AI response.
+
+Integrate:
+
+Ollama
+
+Default model
+
+gemma3:4b
+
+Embeddings
+
+nomic-embed-text
+
+Every summary must come from Ollama.
+
+Every semantic search must use embeddings.
+
+No hardcoded responses.
+
+VECTOR DATABASE
+
+Use ChromaDB.
+
+Persist embeddings locally.
+
+Store
+
+file path
+title
+extracted text
+metadata
+embedding
+
+Implement
+
+add_document()
+update_document()
+delete_document()
+semantic_search()
+OCR
+
+Use
+
+pytesseract
+
+Extract text from
+
+PNG
+JPG
+JPEG
+screenshots
+
+Store OCR text inside SQLite.
+
+Make OCR text searchable.
+
+DOCUMENT PROCESSING
+
+PDF
+
+Use
+
+PyMuPDF
+
+DOCX
+
+Use
+
+python-docx
+
+TXT
+
+Markdown
+
+Extract full text.
+
+Generate embeddings.
+
+Store metadata.
+
+SEARCH PIPELINE
+
+User query
+
+↓
+
+Generate embedding
+
+↓
+
+Search ChromaDB
+
+↓
+
+Retrieve top documents
+
+↓
+
+Use Ollama to generate a natural language answer
+
+↓
+
+Return
+
+answer
+confidence
+related documents
+summaries
+API ENDPOINTS
+
+Implement
+
+POST /index
+
+POST /search
+
+POST /summary
+
+POST /ocr
+
+POST /folders
+
+GET /documents
+
+GET /stats
+
+GET /timeline
+
+DELETE /document/{id}
+
+Use Pydantic models.
+
+FRONTEND
+
+Keep React.
+
+Keep TypeScript.
+
+Keep Tailwind.
+
+Do NOT rebuild the frontend.
+
+Only redesign it.
+
+DESIGN GOAL
+
+The application currently looks like a generic AI-generated website.
+
+Completely redesign it into a premium productivity application.
+
+It should NOT resemble ChatGPT, Lovable, Bolt, Replit Agent, or any AI-generated dashboard.
+
+It should feel handcrafted by an experienced product designer.
+
+DESIGN INSPIRATION
+
+Take inspiration from
+
+Raycast
+Linear
+Arc Browser
+Notion
+Apple Finder
+macOS Spotlight
+Dropbox Dash
+
+Do NOT copy any product directly.
+
+Use them only as design inspiration.
+
+REMOVE
+
+Remove all of the following:
+
+black AI backgrounds
+purple gradients
+glowing effects
+glassmorphism everywhere
+neon colors
+oversized hero sections
+giant AI chat boxes
+flashy animations
+generic dashboard cards
+"Ask AI" style layouts
+
+The application should not immediately look AI-generated.
+
+NEW DESIGN
+
+Use a clean productivity-first interface.
+
+Primary background
+
+#FAFAFA
+
+Sidebar
+
+#F5F5F5
+
+Cards
+
+#FFFFFF
+
+Borders
+
+#E5E7EB
+
+Primary Accent
+
+#2563EB
+
+Success
+
+#10B981
+
+Text
+
+#111827
+
+Typography
+
+Inter
+Geist
+
+Rounded corners
+
+10px–12px
+
+Minimal shadows.
+
+Lots of whitespace.
+
+Subtle hover animations.
+
+Professional spacing.
+
+No glowing UI.
+
+LANDING PAGE
+
+Completely redesign.
+
+No giant AI hero.
+
+Instead
+
+Large headline
+
+Remember anything.
+Instantly.
+
+Subtitle
+
+Your private AI-powered digital memory that runs entirely on your device.
+
+Minimal illustration.
+
+Feature grid.
+
+Privacy section.
+
+Architecture section.
+
+Open Source section.
+
+HOME PAGE
+
+Instead of a dashboard full of cards
+
+Create a workspace.
+
+Top search bar
+
+What are you trying to remember?
+
+Below
+
+Recent Memories
+
+Pinned Memories
+
+Collections
+
+Recently Indexed
+
+Recent Searches
+
+SEARCH PAGE
+
+Instead of ChatGPT
+
+Build something similar to macOS Spotlight.
+
+Large search bar.
+
+Typing suggestions.
+
+Search results.
+
+AI explanation.
+
+Related memories.
+
+Open button.
+
+Preview.
+
+Similarity score.
+
+DOCUMENT PAGE
+
+Display
+
+Title
+
+Summary
+
+Keywords
+
+Related memories
+
+Timeline
+
+Metadata
+
+Preview
+
+MEMORY TIMELINE
+
+Beautiful vertical timeline.
+
+Groups
+
+Today
+
+Yesterday
+
+Last Week
+
+Last Month
+
+Each memory card
+
+icon
+title
+preview
+time
+MICRO INTERACTIONS
+
+When indexing
+
+Instead of
+
+Loading...
+
+Display
+
+Scanning files...
+
+Extracting text...
+
+Generating embeddings...
+
+Remembering your documents...
+
+Search animation
+
+Searching your memories...
+
+Hover cards
+
+Show
+
+last opened
+size
+location
+LANGUAGE
+
+Replace technical words.
+
+Instead of
+
+Documents
+
+Use
+
+Memories
+
+Instead of
+
+Timeline
+
+Use
+
+Memory Journey
+
+Instead of
+
+Search
+
+Use
+
+Remember
+
+Instead of
+
+Recent Files
+
+Use
+
+Recent Memories
+
+Instead of
+
+Related Documents
+
+Use
+
+Related Memories
+IMPORTANT
+
+Do NOT remove any existing functionality.
+
+Preserve
+
+routing
+components
+API integration
+pages
+search
+timeline
